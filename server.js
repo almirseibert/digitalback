@@ -13,14 +13,14 @@ app.use(cors()); // Permite requisições do frontend (React)
 app.use(express.json()); // Permite que a API receba dados no formato JSON
 
 // ============================================================================
-// CONFIGURAÇÃO DA BASE DE DADOS (MySQL)
+// CONFIGURAÇÃO DA BASE DE DADOS (MySQL - aaPanel / VPN)
 // ============================================================================
-// Na prática, estas credenciais devem vir de um ficheiro .env
 const dbPool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '', // Insira a palavra-passe do seu MySQL
-    database: 'digital_plus_crm',
+    host: 'sites_digitalplussmysql', // Host Interno
+    port: 3306,                      // Porta Interna
+    user: 'mysql',                   // Usuário
+    password: 'Miguel@18032018',     // Senha
+    database: 'digitalplussmysql',   // Nome do Banco de Dados
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
