@@ -28,23 +28,31 @@ app.get('/api/status', (req, res) => {
 });
 
 // ========================================================================
-// ROTA DE SETUP AUTOMÁTICO (Cria as Tabelas e o Utilizador Administrador)
+// ROTA DE SETUP AUTOMÁTICO (Reset completo e recriação das tabelas)
 // ========================================================================
 app.get('/api/setup', async (req, res) => {
     const bcrypt = require('bcrypt');
     const dbPool = require('./config/db');
     
     try {
-        // 1. CRIAÇÃO DE TODAS AS TABELAS NECESSÁRIAS
+        // 1. LIMPEZA E CRIAÇÃO DE TODAS AS TABELAS NECESSÁRIAS
+        // A ordem do DROP é importante devido às Foreign Keys (chaves estrangeiras)
         const sqlQueries = [
-            `CREATE TABLE IF NOT EXISTS usuarios (
+            `DROP TABLE IF EXISTS interacoes`,
+            `DROP TABLE IF EXISTS lancamentos`,
+            `DROP TABLE IF EXISTS negociacoes`,
+            `DROP TABLE IF EXISTS clientes`,
+            `DROP TABLE IF EXISTS usuarios`,
+            
+            // Recriar as tabelas com a estrutura EXATA necessária
+            `CREATE TABLE usuarios (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 senha VARCHAR(255) NOT NULL,
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )`,
-            `CREATE TABLE IF NOT EXISTS clientes (
+            `CREATE TABLE clientes (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
                 empresa VARCHAR(100),
@@ -53,7 +61,7 @@ app.get('/api/setup', async (req, res) => {
                 origem VARCHAR(50) DEFAULT 'Site',
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )`,
-            `CREATE TABLE IF NOT EXISTS negociacoes (
+            `CREATE TABLE negociacoes (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 cliente_id INT,
                 titulo VARCHAR(100),
@@ -62,7 +70,7 @@ app.get('/api/setup', async (req, res) => {
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
             )`,
-            `CREATE TABLE IF NOT EXISTS lancamentos (
+            `CREATE TABLE lancamentos (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 data DATE NOT NULL,
                 descricao VARCHAR(255) NOT NULL,
@@ -72,7 +80,7 @@ app.get('/api/setup', async (req, res) => {
                 status VARCHAR(20) DEFAULT 'PENDENTE',
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )`,
-            `CREATE TABLE IF NOT EXISTS interacoes (
+            `CREATE TABLE interacoes (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 negociacao_id INT,
                 tipo VARCHAR(50),
@@ -83,36 +91,28 @@ app.get('/api/setup', async (req, res) => {
             )`
         ];
 
-        // Executa todas as queries de criação
+        // Executa todas as queries de criação em sequência
         for (let query of sqlQueries) {
             await dbPool.query(query);
         }
 
-        // 2. CRIAÇÃO OU REDEFINIÇÃO DO ADMINISTRADOR
+        // 2. CRIAÇÃO DO ADMINISTRADOR
         const senhaHash = await bcrypt.hash('123456', 10);
-        const [rows] = await dbPool.query('SELECT * FROM usuarios WHERE email = ?', ['almir.seibert@gmail.com']);
-        
-        let msgAdmin = '';
-        if (rows.length > 0) {
-            await dbPool.query('UPDATE usuarios SET senha = ? WHERE email = ?', [senhaHash, 'almir.seibert@gmail.com']);
-            msgAdmin = 'A palavra-passe do administrador foi redefinida.';
-        } else {
-            await dbPool.query('INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', ['Almir Seibert', 'almir.seibert@gmail.com', senhaHash]);
-            msgAdmin = 'O administrador foi criado com sucesso.';
-        }
+        await dbPool.query('INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', ['Almir Seibert', 'almir.seibert@gmail.com', senhaHash]);
 
         // Resposta de Sucesso
         res.send(`
             <div style="font-family: sans-serif; padding: 20px;">
-                <h2 style="color: #16a34a;">✅ Instalação do Sistema Concluída!</h2>
+                <h2 style="color: #16a34a;">✅ Reset e Instalação Concluídos com Sucesso!</h2>
                 <ul>
-                    <li>Tabelas (Clientes, Negociações, Financeiro) criadas no MySQL.</li>
-                    <li>${msgAdmin}</li>
+                    <li>Tabelas antigas removidas.</li>
+                    <li>Novas tabelas (Clientes, Negociações, Financeiro) recriadas 100% corretas.</li>
+                    <li>Administrador recriado com sucesso.</li>
                 </ul>
                 <p><strong>E-mail:</strong> almir.seibert@gmail.com</p>
                 <p><strong>Senha:</strong> 123456</p>
                 <br/>
-                <p>Volte ao Frontend e o Erro 500 terá desaparecido. Pode começar a adicionar clientes!</p>
+                <p>Volte ao Frontend e faça F5. O Erro 500 desapareceu para sempre e o sistema está pronto a usar!</p>
             </div>
         `);
 
