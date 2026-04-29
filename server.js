@@ -7,6 +7,9 @@ const negociacaoRoutes = require('./routes/negociacaoRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const financeiroRoutes = require('./routes/financeiroRoutes');
 const relatorioRoutes = require('./routes/relatorioRoutes');
+const authRoutes = require('./routes/authRoutes');
+const verificarToken = require('./middlewares/authMiddleware'); // Importa o bloqueio de segurança
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +29,11 @@ app.use('/api/negociacoes', negociacaoRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/financeiro', financeiroRoutes);
 app.use('/api/relatorios', relatorioRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/negociacoes', verificarToken, negociacaoRoutes);
+app.use('/api/clientes', verificarToken, clienteRoutes);
+app.use('/api/financeiro', verificarToken, financeiroRoutes);
+app.use('/api/relatorios', verificarToken, relatorioRoutes);
 
 // 5. Start do Servidor
 app.listen(PORT, () => {
