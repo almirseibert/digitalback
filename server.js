@@ -2,34 +2,31 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-// 1. Importa todas as rotas criadas
+// 1. Importa todas as rotas e o middleware de segurança
+const authRoutes = require('./routes/authRoutes');
 const negociacaoRoutes = require('./routes/negociacaoRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const financeiroRoutes = require('./routes/financeiroRoutes');
 const relatorioRoutes = require('./routes/relatorioRoutes');
-const authRoutes = require('./routes/authRoutes');
-const verificarToken = require('./middlewares/authMiddleware'); // Importa o bloqueio de segurança
-
+const verificarToken = require('./middlewares/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 2. Middlewares padrão (Permitem leitura de JSON e comunicação com React)
+// 2. Middlewares padrão
 app.use(cors());
 app.use(express.json());
 
-// 3. Rota Básica de Status (Para você testar se o servidor está online)
+// 3. Rota de Status
 app.get('/api/status', (req, res) => {
-    res.json({ status: 'online', mensagem: 'API digit@l plus+ rodando 100% com estrutura modular completa!' });
+    res.json({ status: 'online', mensagem: 'API digit@l plus+ rodando com estrutura modular!' });
 });
 
-// 4. Registro das Rotas (Endpoints)
-// Ex: O React chama /api/clientes e cai no clienteRoutes.js
-app.use('/api/negociacoes', negociacaoRoutes);
-app.use('/api/clientes', clienteRoutes);
-app.use('/api/financeiro', financeiroRoutes);
-app.use('/api/relatorios', relatorioRoutes);
+// 4. Registro das Rotas
+// A Rota de autenticação é pública (para fazer login)
 app.use('/api/auth', authRoutes);
+
+// As rotas abaixo são Privadas (exigem que o usuário esteja logado com o Token)
 app.use('/api/negociacoes', verificarToken, negociacaoRoutes);
 app.use('/api/clientes', verificarToken, clienteRoutes);
 app.use('/api/financeiro', verificarToken, financeiroRoutes);
@@ -39,10 +36,6 @@ app.use('/api/relatorios', verificarToken, relatorioRoutes);
 app.listen(PORT, () => {
     console.log(`\n======================================================`);
     console.log(`🚀 Servidor Backend CRM digit@l plus+ rodando na porta ${PORT}`);
-    console.log(`✅ Rotas Carregadas:`);
-    console.log(`   - /api/negociacoes`);
-    console.log(`   - /api/clientes`);
-    console.log(`   - /api/financeiro`);
-    console.log(`   - /api/relatorios`);
+    console.log(`✅ Todas as rotas carregadas e protegidas.`);
     console.log(`======================================================\n`);
 });

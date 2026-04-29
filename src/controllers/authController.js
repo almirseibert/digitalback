@@ -5,19 +5,13 @@ const jwt = require('jsonwebtoken');
 const authController = {
     login: async (req, res) => {
         const { email, password } = req.body;
-
         try {
             const [rows] = await dbPool.query('SELECT * FROM usuarios WHERE email = ?', [email]);
-            if (rows.length === 0) {
-                return res.status(401).json({ success: false, error: 'E-mail ou palavra-passe incorretos.' });
-            }
+            if (rows.length === 0) return res.status(401).json({ success: false, error: 'E-mail ou palavra-passe incorretos.' });
 
             const usuario = rows[0];
-
             const senhaValida = await bcrypt.compare(password, usuario.senha);
-            if (!senhaValida) {
-                return res.status(401).json({ success: false, error: 'E-mail ou palavra-passe incorretos.' });
-            }
+            if (!senhaValida) return res.status(401).json({ success: false, error: 'E-mail ou palavra-passe incorretos.' });
 
             const token = jwt.sign(
                 { id: usuario.id, email: usuario.email, nome: usuario.nome },
@@ -25,19 +19,12 @@ const authController = {
                 { expiresIn: '8h' }
             );
 
-            res.json({ 
-                success: true, 
-                token, 
-                usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email } 
-            });
-
+            res.json({ success: true, token, usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email } });
         } catch (error) {
-            console.error('Erro no login:', error);
+            console.error(error);
             res.status(500).json({ success: false, error: 'Erro interno no servidor.' });
         }
     },
-
-    // Funções exclusivas para gestão de administradores
     listarUsuarios: async (req, res) => {
         try {
             const [rows] = await dbPool.query('SELECT id, nome, email, data_criacao FROM usuarios ORDER BY data_criacao DESC');
@@ -46,31 +33,18 @@ const authController = {
             res.status(500).json({ success: false, error: 'Erro ao buscar utilizadores.' });
         }
     },
-
     criarUsuario: async (req, res) => {
         const { nome, email, senha } = req.body;
-        
-        // Bloqueio de Segurança: Apenas almir.seibert@gmail.com pode criar outros
-        if (req.usuario.email !== 'almir.seibert@gmail.com') {
-             return res.status(403).json({ success: false, error: 'Acesso negado. Apenas o Super Admin pode criar utilizadores.' });
-        }
-
+        if (req.usuario.email !== 'almir.seibert@gmail.com') return res.status(403).json({ success: false, error: 'Acesso negado.' });
         try {
             const salt = await bcrypt.genSalt(10);
             const senhaHash = await bcrypt.hash(senha, salt);
-
-            await dbPool.query(
-                'INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)',
-                [nome, email, senhaHash]
-            );
+            await dbPool.query('INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', [nome, email, senhaHash]);
             res.status(201).json({ success: true, mensagem: 'Utilizador criado com sucesso!' });
         } catch (error) {
-            if (error.code === 'ER_DUP_ENTRY') {
-                return res.status(400).json({ success: false, error: 'Este e-mail já está em uso.' });
-            }
+            if (error.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'E-mail já em uso.' });
             res.status(500).json({ success: false, error: 'Erro ao criar utilizador.' });
         }
     }
 };
-
 module.exports = authController;
