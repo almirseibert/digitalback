@@ -35,6 +35,41 @@ app.get('/api/status', (req, res) => {
     res.json({ status: 'online', mensagem: 'API digit@l plus+ rodando sem erros de CORS!' });
 });
 
+// ========================================================================
+// ROTA TEMPORÁRIA DE SETUP (Para criar o primeiro utilizador administrador)
+// Após o deploy, aceda a: https://sites-digitalplussback.oehpg2.easypanel.host/api/setup
+// ========================================================================
+app.get('/api/setup', async (req, res) => {
+    const bcrypt = require('bcrypt');
+    const dbPool = require('./config/db');
+    try {
+        const senhaHash = await bcrypt.hash('123456', 10);
+        // Tenta inserir o utilizador, se não existir ignora (INSERT IGNORE)
+        const [result] = await dbPool.query(
+            'INSERT IGNORE INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', 
+            ['Almir Seibert', 'almir.seibert@gmail.com', senhaHash]
+        );
+        
+        if (result.affectedRows > 0) {
+            res.send(`
+                <h2>✅ Utilizador admin criado com sucesso!</h2>
+                <p><strong>E-mail:</strong> almir.seibert@gmail.com</p>
+                <p><strong>Senha provisória:</strong> 123456</p>
+                <p>Pode voltar ao painel do Frontend e fazer login.</p>
+            `);
+        } else {
+            res.send('⚠️ O utilizador almir.seibert@gmail.com já existe na base de dados.');
+        }
+    } catch (error) {
+        console.error('Erro no setup:', error);
+        res.status(500).send(`
+            <h2>❌ Erro ao criar utilizador.</h2>
+            <p>Certifique-se que executou o script SQL no MySQL para criar as tabelas (como a tabela 'usuarios').</p>
+            <p><b>Detalhe do erro:</b> ${error.message}</p>
+        `);
+    }
+});
+
 // 4. Registro das Rotas
 // A Rota de autenticação é pública (para fazer login)
 app.use('/api/auth', authRoutes);
