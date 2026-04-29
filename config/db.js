@@ -2,11 +2,11 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const dbPool = mysql.createPool({
-    host: process.env.DB_HOST || 'sites_digitalplussmysql',
-    port: process.env.DB_PORT || 3306,
+    host: process.env.DB_HOST || '217.196.60.62',
+    port: process.env.DB_PORT || 3301,
     user: process.env.DB_USER || 'mysql',
     password: process.env.DB_PASSWORD || 'Miguel@18032018',
-    database: process.env.DB_NAME || 'digitalplussmysql',
+    database: process.env.DB_DATABASE || 'digitalplussmysql',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
