@@ -28,18 +28,26 @@ app.get('/api/status', (req, res) => {
 });
 
 // ========================================================================
-// ROTA DE SETUP AUTOMÁTICO (Reset completo e recriação das tabelas)
+// ROTA DE SETUP AUTOMÁTICO (Reset completo à prova de falhas)
 // ========================================================================
 app.get('/api/setup', async (req, res) => {
     const bcrypt = require('bcrypt');
     const dbPool = require('./config/db');
+    let conn;
     
     try {
+        // Obtemos uma conexão dedicada para garantir que as variáveis de sessão (FOREIGN_KEY_CHECKS) funcionem corretamente
+        conn = await dbPool.getConnection();
+        
+        // DESATIVA A VERIFICAÇÃO DE CHAVES ESTRANGEIRAS TEMPORARIAMENTE
+        // Isto impede o erro "Cannot drop table referenced by a foreign key constraint"
+        await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+        
         // 1. LIMPEZA E CRIAÇÃO DE TODAS AS TABELAS NECESSÁRIAS
-        // A ordem do DROP é importante devido às Foreign Keys (chaves estrangeiras)
         const sqlQueries = [
             `DROP TABLE IF EXISTS interacoes`,
             `DROP TABLE IF EXISTS lancamentos`,
+            `DROP TABLE IF EXISTS financeiro_lancamentos`, // Remove explicitamente a tabela antiga que causou o erro
             `DROP TABLE IF EXISTS negociacoes`,
             `DROP TABLE IF EXISTS clientes`,
             `DROP TABLE IF EXISTS usuarios`,
@@ -91,32 +99,45 @@ app.get('/api/setup', async (req, res) => {
             )`
         ];
 
-        // Executa todas as queries de criação em sequência
+        // Executa todas as queries usando a mesma conexão
         for (let query of sqlQueries) {
-            await dbPool.query(query);
+            await conn.query(query);
         }
+
+        // REATIVA A VERIFICAÇÃO DE CHAVES ESTRANGEIRAS
+        await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
         // 2. CRIAÇÃO DO ADMINISTRADOR
         const senhaHash = await bcrypt.hash('123456', 10);
-        await dbPool.query('INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', ['Almir Seibert', 'almir.seibert@gmail.com', senhaHash]);
+        await conn.query('INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', ['Almir Seibert', 'almir.seibert@gmail.com', senhaHash]);
+
+        // Liberta a conexão de volta para o pool
+        conn.release();
 
         // Resposta de Sucesso
         res.send(`
             <div style="font-family: sans-serif; padding: 20px;">
-                <h2 style="color: #16a34a;">✅ Reset e Instalação Concluídos com Sucesso!</h2>
+                <h2 style="color: #16a34a;">✅ Reset Forçado e Instalação Concluídos com Sucesso!</h2>
                 <ul>
+                    <li>Bloqueio de chaves estrangeiras contornado.</li>
                     <li>Tabelas antigas removidas.</li>
-                    <li>Novas tabelas (Clientes, Negociações, Financeiro) recriadas 100% corretas.</li>
+                    <li>Novas tabelas recriadas perfeitamente.</li>
                     <li>Administrador recriado com sucesso.</li>
                 </ul>
                 <p><strong>E-mail:</strong> almir.seibert@gmail.com</p>
                 <p><strong>Senha:</strong> 123456</p>
                 <br/>
-                <p>Volte ao Frontend e faça F5. O Erro 500 desapareceu para sempre e o sistema está pronto a usar!</p>
+                <p>Volte ao Frontend e faça F5. O sistema está agora 100% pronto a usar!</p>
             </div>
         `);
 
     } catch (error) {
+        if (conn) {
+            // Em caso de erro, tenta reativar as chaves estrangeiras e liberta a conexão
+            try { await conn.query('SET FOREIGN_KEY_CHECKS = 1'); } catch(e) {}
+            conn.release();
+        }
+        
         console.error('Erro na Instalação:', error);
         res.status(500).send(`
             <div style="font-family: sans-serif; padding: 20px;">
