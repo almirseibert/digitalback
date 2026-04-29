@@ -36,7 +36,7 @@ app.get('/api/status', (req, res) => {
 });
 
 // ========================================================================
-// ROTA TEMPORÁRIA DE SETUP (Para criar o primeiro utilizador administrador)
+// ROTA TEMPORÁRIA DE SETUP (Para criar ou REDEFINIR o utilizador administrador)
 // Após o deploy, aceda a: https://sites-digitalplussback.oehpg2.easypanel.host/api/setup
 // ========================================================================
 app.get('/api/setup', async (req, res) => {
@@ -44,28 +44,45 @@ app.get('/api/setup', async (req, res) => {
     const dbPool = require('./config/db');
     try {
         const senhaHash = await bcrypt.hash('123456', 10);
-        // Tenta inserir o utilizador, se não existir ignora (INSERT IGNORE)
-        const [result] = await dbPool.query(
-            'INSERT IGNORE INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', 
-            ['Almir Seibert', 'almir.seibert@gmail.com', senhaHash]
-        );
         
-        if (result.affectedRows > 0) {
+        // Verifica se o utilizador já existe
+        const [rows] = await dbPool.query('SELECT * FROM usuarios WHERE email = ?', ['almir.seibert@gmail.com']);
+        
+        if (rows.length > 0) {
+            // Se já existe, força a atualização da senha para 123456
+            await dbPool.query('UPDATE usuarios SET senha = ? WHERE email = ?', [senhaHash, 'almir.seibert@gmail.com']);
             res.send(`
-                <h2>✅ Utilizador admin criado com sucesso!</h2>
-                <p><strong>E-mail:</strong> almir.seibert@gmail.com</p>
-                <p><strong>Senha provisória:</strong> 123456</p>
-                <p>Pode voltar ao painel do Frontend e fazer login.</p>
+                <div style="font-family: sans-serif; padding: 20px;">
+                    <h2 style="color: #2563eb;">✅ Palavra-passe Redefinida!</h2>
+                    <p>O utilizador já existia na base de dados, mas a palavra-passe foi forçada e atualizada.</p>
+                    <p><strong>E-mail:</strong> almir.seibert@gmail.com</p>
+                    <p><strong>Nova Senha:</strong> 123456</p>
+                    <p>Pode voltar ao painel do Frontend e fazer login.</p>
+                </div>
             `);
         } else {
-            res.send('⚠️ O utilizador almir.seibert@gmail.com já existe na base de dados.');
+            // Se não existe, cria um novo
+            await dbPool.query(
+                'INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)', 
+                ['Almir Seibert', 'almir.seibert@gmail.com', senhaHash]
+            );
+            res.send(`
+                <div style="font-family: sans-serif; padding: 20px;">
+                    <h2 style="color: #16a34a;">✅ Utilizador Admin Criado!</h2>
+                    <p><strong>E-mail:</strong> almir.seibert@gmail.com</p>
+                    <p><strong>Senha:</strong> 123456</p>
+                    <p>Pode voltar ao painel do Frontend e fazer login.</p>
+                </div>
+            `);
         }
     } catch (error) {
         console.error('Erro no setup:', error);
         res.status(500).send(`
-            <h2>❌ Erro ao criar utilizador.</h2>
-            <p>Certifique-se que executou o script SQL no MySQL para criar as tabelas (como a tabela 'usuarios').</p>
-            <p><b>Detalhe do erro:</b> ${error.message}</p>
+            <div style="font-family: sans-serif; padding: 20px;">
+                <h2 style="color: #dc2626;">❌ Erro ao configurar utilizador.</h2>
+                <p>Certifique-se que as tabelas foram criadas no MySQL.</p>
+                <p><b>Detalhe do erro:</b> ${error.message}</p>
+            </div>
         `);
     }
 });
