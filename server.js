@@ -14,7 +14,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 2. Middlewares padrão
-app.use(cors());
+app.use(cors({
+    origin: 'https://sites-digitalplussfront.oehpg2.easypanel.host', // A URL exata do seu Frontend
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // 3. Rota de Status
