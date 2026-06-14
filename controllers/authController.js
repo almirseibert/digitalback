@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const SUPER_ADMIN = 'almir.seibert@gmail.com';
-const SEGREDO = () => process.env.JWT_SECRET || 'super_chave_secreta_digital_pluss_crm_2026';
+const SEGREDO = () => process.env.JWT_SECRET || 'super_chave_secreta_studio_mythos_crm_2026';
 
 const ehAdmin = (usuario) => usuario && (usuario.papel === 'admin' || usuario.email === SUPER_ADMIN);
 
