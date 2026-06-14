@@ -12,6 +12,11 @@ const dbPool = mysql.createPool({
     queueLimit: 0
 });
 
+// Evita que um erro em conexão ociosa do pool derrube o processo
+dbPool.on('error', (err) => {
+    console.error('⚠️  Erro no pool MySQL:', err.code || err.message);
+});
+
 dbPool.getConnection()
     .then(conn => {
         console.log('✅ Conexão com o MySQL estabelecida com sucesso!');

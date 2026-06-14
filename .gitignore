@@ -1,0 +1,14 @@
+# Dependências
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Variáveis de ambiente locais (o .env de produção é versionado conforme o fluxo atual)
+.env.local
+.env.*.local
+
+# Sistema
+.DS_Store
+Thumbs.db

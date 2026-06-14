@@ -8,7 +8,7 @@ const verificarToken = (req, res, next) => {
         return res.status(403).json({ success: false, error: 'Acesso negado. Token não fornecido.' });
     }
 
-    jwt.verify(token, process.env.JWT_SECRET || 'super_chave_secreta_digital_plus_crm_2026', (err, decoded) => {
+    jwt.verify(token, process.env.JWT_SECRET || 'super_chave_secreta_studio_mythos_crm_2026', (err, decoded) => {
         if (err) {
             return res.status(401).json({ success: false, error: 'Sessão expirada ou token inválido.' });
         }

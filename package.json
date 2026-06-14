@@ -1,13 +1,13 @@
 {
-  "name": "digital-plus-backend",
+  "name": "studio-mythos-backend",
   "version": "1.0.0",
-  "description": "Backend API para o CRM da digit@l plus+",
+  "description": "Backend API para o CRM da Studio Mythos",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "author": "digit@l plus+",
+  "author": "Studio Mythos",
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^5.1.1",

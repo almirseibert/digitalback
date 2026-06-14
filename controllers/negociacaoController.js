@@ -30,7 +30,7 @@ const negociacaoController = {
             switch(novaFase) {
                 case 'Qualificação': msg = `Olá ${cliente.nome}! Recebemos o interesse da ${cliente.empresa}. Qual seria o melhor horário para uma chamada? 🚀`; break;
                 case 'Proposta': msg = `Oi ${cliente.nome}! Enviei a proposta para o seu e-mail. Analise e avise-me. ✨`; break;
-                case 'Ganho': msg = `Parabéns, ${cliente.nome}! 🎉 Bem-vindo(a) à digit@l plus+.`; break;
+                case 'Ganho': msg = `Parabéns, ${cliente.nome}! 🎉 Bem-vindo(a) à Studio Mythos.`; break;
             }
 
             if (msg !== "") {
