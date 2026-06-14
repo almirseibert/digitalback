@@ -87,6 +87,11 @@ app.get('/api/setup', async (req, res) => {
             valor_estimado DECIMAL(10,2) DEFAULT 0.00,
             titulo VARCHAR(150),
             observacoes TEXT,
+            produto_oferecido VARCHAR(255),
+            valor_proposta DECIMAL(10,2) DEFAULT 0.00,
+            servicos_oferecidos TEXT,
+            contatos TEXT,
+            detalhes_externos TEXT,
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (vendedor_id) REFERENCES usuarios(id) ON DELETE SET NULL
@@ -203,9 +208,11 @@ app.use((err, req, res, next) => {
 });
 
 // 7. Start
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     console.log(`\n======================================================`);
     console.log(`🚀 Backend Studio Mythos rodando na porta ${PORT}`);
     console.log(`✅ Prospecção por mapa (Overpass/OSM) ativa`);
     console.log(`======================================================\n`);
+    const { garantirColunas } = require('./config/migrate');
+    await garantirColunas();
 });

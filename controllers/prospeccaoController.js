@@ -1,10 +1,16 @@
 const dbPool = require('../config/db');
 const overpass = require('../services/overpassService');
+const google = require('../services/googlePlacesService');
 
 const prospeccaoController = {
   // Lista os tipos de empresa disponíveis para varredura
   categorias: (req, res) => {
     res.json({ success: true, data: overpass.listarCategorias() });
+  },
+
+  // Config da prospecção: quais fontes de dados estão disponíveis
+  config: (req, res) => {
+    res.json({ success: true, data: { google_disponivel: google.disponivel() } });
   },
 
   // Geocodifica um texto para centralizar o mapa
@@ -24,14 +30,17 @@ const prospeccaoController = {
 
   // Varredura: encontra empresas por categoria dentro do raio
   buscar: async (req, res) => {
-    const { latitude, longitude, raio, categorias } = req.body;
+    const { latitude, longitude, raio, categorias, fonte } = req.body;
+    const usarGoogle = fonte === 'google' && google.disponivel();
+    const servico = usarGoogle ? google : overpass;
     try {
-      const resultado = await overpass.buscarEmpresas({
+      const resultado = await servico.buscarEmpresas({
         lat: Number(latitude),
         lng: Number(longitude),
         raio: Number(raio),
         categorias,
       });
+      if (!resultado.fonte) resultado.fonte = 'osm';
       res.json({ success: true, data: resultado });
     } catch (error) {
       console.error('Erro varredura:', error.message);
@@ -63,17 +72,36 @@ const prospeccaoController = {
       let duplicados = 0;
       for (const e of empresas) {
         if (e.osm_ref && existentes.has(e.osm_ref)) { duplicados++; continue; }
+        // Monta os detalhes externos (dados da internet/OSM/Google) e um contato inicial
+        const detalhes = Array.isArray(e.detalhes) ? e.detalhes : [];
+        if (Array.isArray(e.redes_sociais) && e.redes_sociais.length) {
+          detalhes.push({ label: 'Redes sociais', valor: e.redes_sociais.join(', ') });
+        }
+        // Para leads do Google Maps, busca avaliações/reviews para anexar
+        if (typeof e.osm_ref === 'string' && e.osm_ref.startsWith('google/')) {
+          try {
+            const reviews = await google.detalhesEmpresa(e.osm_ref);
+            if (Array.isArray(reviews)) detalhes.push(...reviews);
+          } catch (err) { /* enriquecimento é best-effort */ }
+        }
+        const contatos = [];
+        if (e.telefone || e.email) {
+          contatos.push({ nome: 'Contato principal', telefone: e.telefone || '', email: e.email || '' });
+        }
+
         const [r] = await conn.query(
           `INSERT INTO clientes
             (nome, empresa, telefone, email, origem, categoria, endereco, cidade, estado,
-             latitude, longitude, possui_website, website_url, osm_ref, status, vendedor_id, titulo)
-           VALUES (?, ?, ?, ?, 'Prospecção', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?)`,
+             latitude, longitude, possui_website, website_url, osm_ref, status, vendedor_id, titulo,
+             contatos, detalhes_externos)
+           VALUES (?, ?, ?, ?, 'Prospecção', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?)`,
           [
-            e.empresa || 'Contato', e.empresa || '', e.telefone || '', '',
+            e.empresa || 'Contato', e.empresa || '', e.telefone || '', e.email || '',
             e.categoria || '', e.endereco || '', e.cidade || '', e.estado || '',
             e.latitude || null, e.longitude || null,
             e.possui_website ? 1 : 0, e.website_url || '', e.osm_ref || null,
             vendedor_id || null, `Website para ${e.empresa || 'novo cliente'}`,
+            JSON.stringify(contatos), JSON.stringify(detalhes),
           ]
         );
         await conn.query(

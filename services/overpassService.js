@@ -31,6 +31,7 @@ const CATEGORIAS = [
   { id: 'contabilidade', label: 'Contabilidade',        icon: 'calculator',       filtros: [['office', 'accountant']] },
   { id: 'imobiliaria',   label: 'Imobiliárias',         icon: 'home',             filtros: [['office', 'estate_agent']] },
   { id: 'oficina',       label: 'Oficinas Mecânicas',   icon: 'wrench',           filtros: [['shop', 'car_repair']] },
+  { id: 'lavagem',       label: 'Lavagens Automotivas', icon: 'droplets',         filtros: [['amenity', 'car_wash'], ['shop', 'car_wash']] },
   { id: 'petshop',       label: 'Pet Shops',            icon: 'paw-print',        filtros: [['shop', 'pet']] },
   { id: 'farmacia',      label: 'Farmácias',            icon: 'pill',             filtros: [['amenity', 'pharmacy']] },
   { id: 'roupas',        label: 'Lojas de Roupa',       icon: 'shirt',            filtros: [['shop', 'clothes']] },
@@ -95,6 +96,47 @@ function extrairRedesSociais(tags) {
   return redes;
 }
 
+function extrairEmail(tags) {
+  return tags.email || tags['contact:email'] || '';
+}
+
+/**
+ * Extrai tudo que o OpenStreetMap conhece sobre o local — análogo às
+ * informações que aparecem no Google Maps (horários, cardápio, formas de
+ * pagamento, acessibilidade, redes, etc.). Retorna uma lista [{label, valor}].
+ */
+function extrairDetalhes(tags) {
+  const out = [];
+  const push = (label, v) => { if (v) out.push({ label, valor: String(v) }); };
+  const sim = (cond) => (cond ? 'Sim' : undefined);
+  const limpar = (v) => (v ? String(v).replace(/_/g, ' ').replace(/;/g, ', ') : undefined);
+
+  push('Horário de funcionamento', tags.opening_hours);
+  push('Tipo de cozinha', limpar(tags.cuisine));
+  push('Faixa de preço', tags.price_range || tags.price);
+  push('Refeição no local', sim(tags['dine_in'] === 'yes'));
+  push('Para viagem', sim(tags.takeaway === 'yes' || tags.takeaway === 'only'));
+  push('Entrega (delivery)', sim(tags.delivery === 'yes'));
+  push('Aceita reservas', sim(tags.reservation === 'yes' || tags.reservation === 'required'));
+  push('Opções vegetarianas', sim(tags['diet:vegetarian'] === 'yes'));
+  push('Opções veganas', sim(tags['diet:vegan'] === 'yes'));
+  push('Servem álcool', sim(tags['drink:alcohol'] === 'yes' || tags.alcohol === 'yes'));
+  push('Wi-Fi', sim(tags.internet_access === 'wlan' || tags.wifi === 'yes' || tags['internet_access:fee'] === 'no'));
+  push('Aceita cartão', sim(tags['payment:credit_cards'] === 'yes' || tags['payment:cards'] === 'yes' || tags['payment:debit_cards'] === 'yes'));
+  push('Pagamento por aproximação', sim(tags['payment:contactless'] === 'yes'));
+  push('Vale-refeição', sim(tags['payment:meal_voucher'] === 'yes' || tags['payment:alelo'] === 'yes'));
+  push('Acessível p/ cadeirantes', sim(tags.wheelchair === 'yes'));
+  push('Estacionamento', sim(tags.parking === 'yes' || tags['amenity'] === 'parking'));
+  push('Ambiente p/ crianças', sim(tags.kids_area === 'yes' || tags['child_friendly'] === 'yes'));
+  push('Ar-condicionado', sim(tags.air_conditioning === 'yes'));
+  push('Fumódromo', sim(tags.smoking === 'yes' || tags.smoking === 'outside'));
+  push('Email', extrairEmail(tags));
+  push('Instagram', tags['contact:instagram'] || tags.instagram);
+  push('Facebook', tags['contact:facebook'] || tags.facebook);
+  push('Website', tags.website || tags['contact:website'] || tags.url);
+  return out;
+}
+
 async function chamarOverpass(query) {
   let ultimoErro;
   for (const endpoint of OVERPASS_ENDPOINTS) {
@@ -154,12 +196,15 @@ async function buscarEmpresas({ lat, lng, raio, categorias }) {
       empresa: tags.name,
       categoria: classificarCategoria(tags),
       telefone: extrairTelefone(tags),
+      email: extrairEmail(tags),
       website_url: tags.website || tags['contact:website'] || tags.url || '',
       possui_website,
       redes_sociais: extrairRedesSociais(tags),
+      detalhes: extrairDetalhes(tags),
       endereco: montarEndereco(tags),
       cidade: tags['addr:city'] || '',
       estado: tags['addr:state'] || '',
+      cep: tags['addr:postcode'] || '',
       latitude: Number(elat),
       longitude: Number(elng),
     });

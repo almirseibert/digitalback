@@ -3,6 +3,7 @@ const router = express.Router();
 const leadController = require('../controllers/leadController');
 
 router.get('/estagios', leadController.estagios);
+router.get('/servicos-catalogo', leadController.catalogoServicos);
 router.get('/', leadController.listar);
 router.post('/', leadController.criar);
 router.get('/:id', leadController.detalhe);

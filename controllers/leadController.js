@@ -1,7 +1,18 @@
 const dbPool = require('../config/db');
+const { SERVICOS } = require('../config/servicos');
 
 // Estágios do funil de captação (status para cada parte do processo)
 const ESTAGIOS = ['Novo', 'Contactado', 'Qualificado', 'Proposta', 'Negociação', 'Ganho', 'Perdido'];
+
+// Campos guardados como JSON (array/objeto) na tabela clientes
+const CAMPOS_JSON = ['servicos_oferecidos', 'contatos', 'detalhes_externos'];
+
+// Converte com segurança um campo JSON vindo do banco para objeto/array
+function parseJSON(valor, fallback) {
+  if (valor == null || valor === '') return fallback;
+  if (typeof valor === 'object') return valor;
+  try { return JSON.parse(valor); } catch { return fallback; }
+}
 
 // Mensagens automáticas (WhatsApp) disparadas ao mover de estágio
 const MENSAGENS = {
@@ -18,6 +29,9 @@ const enviarWhatsapp = async (telefone, mensagem) => {
 
 const leadController = {
   estagios: (req, res) => res.json({ success: true, data: ESTAGIOS }),
+
+  // Catálogo de serviços que o vendedor pode oferecer ao lead
+  catalogoServicos: (req, res) => res.json({ success: true, data: SERVICOS }),
 
   // Lista todos os leads com vendedor responsável e dias parado (aging)
   listar: async (req, res) => {
@@ -62,6 +76,10 @@ const leadController = {
          FROM interacoes i LEFT JOIN usuarios u ON i.usuario_id = u.id
          WHERE i.cliente_id = ? ORDER BY i.data_criacao DESC`, [id]
       );
+      // Desserializa os campos JSON para o frontend
+      lead.servicos_oferecidos = parseJSON(lead.servicos_oferecidos, []);
+      lead.contatos = parseJSON(lead.contatos, []);
+      lead.detalhes_externos = parseJSON(lead.detalhes_externos, []);
       res.json({ success: true, data: { ...lead, interacoes } });
     } catch (error) {
       console.error('Erro detalhe lead:', error.message);
@@ -97,11 +115,17 @@ const leadController = {
   // Atualiza campos gerais do lead
   atualizar: async (req, res) => {
     const { id } = req.params;
-    const permitidos = ['nome', 'empresa', 'email', 'telefone', 'categoria', 'endereco', 'cidade', 'valor_estimado', 'titulo', 'observacoes', 'website_url'];
+    const permitidos = ['nome', 'empresa', 'email', 'telefone', 'categoria', 'endereco', 'cidade',
+      'valor_estimado', 'titulo', 'observacoes', 'website_url',
+      'produto_oferecido', 'valor_proposta', 'servicos_oferecidos', 'contatos'];
     const sets = [];
     const params = [];
     for (const campo of permitidos) {
-      if (req.body[campo] !== undefined) { sets.push(`${campo} = ?`); params.push(req.body[campo]); }
+      if (req.body[campo] !== undefined) {
+        sets.push(`${campo} = ?`);
+        const valor = CAMPOS_JSON.includes(campo) ? JSON.stringify(req.body[campo] ?? []) : req.body[campo];
+        params.push(valor);
+      }
     }
     if (!sets.length) return res.status(400).json({ success: false, error: 'Nada para atualizar.' });
     params.push(id);
