@@ -9,7 +9,10 @@ const prospeccaoRoutes = require('./routes/prospeccaoRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const financeiroRoutes = require('./routes/financeiroRoutes');
 const relatorioRoutes = require('./routes/relatorioRoutes');
+const publicoRoutes = require('./routes/publicoRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const verificarToken = require('./middlewares/authMiddleware');
+const exigirAdmin = require('./middlewares/adminMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -120,6 +123,53 @@ app.get('/api/setup', async (req, res) => {
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`);
 
+        await conn.query(`CREATE TABLE IF NOT EXISTS curriculos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nome VARCHAR(150) NOT NULL,
+            email VARCHAR(150) NOT NULL,
+            telefone VARCHAR(40),
+            data_nascimento DATE NULL,
+            cpf VARCHAR(20),
+            rg VARCHAR(20),
+            sexo VARCHAR(20),
+            estado_civil VARCHAR(30),
+            nacionalidade VARCHAR(60),
+            endereco VARCHAR(255),
+            cidade VARCHAR(120),
+            estado VARCHAR(60),
+            cep VARCHAR(15),
+            vaga_desejada VARCHAR(150),
+            pretensao_salarial VARCHAR(60),
+            disponibilidade VARCHAR(80),
+            escolaridade VARCHAR(80),
+            cnh VARCHAR(20),
+            possui_veiculo TINYINT DEFAULT 0,
+            linkedin VARCHAR(255),
+            portfolio VARCHAR(255),
+            experiencias TEXT,
+            formacoes TEXT,
+            cursos TEXT,
+            habilidades TEXT,
+            sobre TEXT,
+            origem VARCHAR(40) DEFAULT 'Site',
+            status ENUM('Novo','Em análise','Entrevista','Aprovado','Reprovado') DEFAULT 'Novo',
+            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        await conn.query(`CREATE TABLE IF NOT EXISTS orcamentos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nome VARCHAR(150) NOT NULL,
+            email VARCHAR(150),
+            telefone VARCHAR(40),
+            tipo VARCHAR(80) DEFAULT 'Orçamento',
+            descricao TEXT,
+            dados TEXT,
+            valor_estimado DECIMAL(10,2) DEFAULT 0.00,
+            origem VARCHAR(40) DEFAULT 'Site',
+            status ENUM('Novo','Em contato','Fechado','Cancelado') DEFAULT 'Novo',
+            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+
         await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
         // ----- Utilizadores (senha padrão: 123456) -----
@@ -195,6 +245,12 @@ app.use('/api/prospeccao', verificarToken, prospeccaoRoutes);
 app.use('/api/clientes', verificarToken, clienteRoutes);
 app.use('/api/financeiro', verificarToken, financeiroRoutes);
 app.use('/api/relatorios', verificarToken, relatorioRoutes);
+
+// Envios públicos do site (sem token): currículos e orçamentos
+app.use('/api/publico', publicoRoutes);
+
+// Administração (token + admin): visualizar currículos e orçamentos
+app.use('/api/admin', verificarToken, exigirAdmin, adminRoutes);
 
 // 5. 404
 app.use((req, res) => {
